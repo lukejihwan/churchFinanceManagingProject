@@ -1,0 +1,50 @@
+body {
+  padding: 50px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00b7ff;
+}
+
+.container {
+  max-width: 32rem;
+}
+
+.hint {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.success {
+  color: #0a6;
+  font-weight: 600;
+}
+
+.form .field {
+  margin-bottom: 1rem;
+}
+
+.form label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.form input[type="text"],
+.form input[type="password"] {
+  width: 100%;
+  max-width: 20rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.field-error {
+  display: block;
+  color: #c33;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.form button {
+  margin-top: 0.5rem;
+  padding: 0.4rem 1rem;
+}

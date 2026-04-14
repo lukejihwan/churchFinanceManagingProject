@@ -1,0 +1,31 @@
+<%- include('../partials/head', { title }) %>
+<main class="container">
+  <h1><%= title %></h1>
+  <p class="hint">생성되는 사용자는 역할이 <strong>청구자(CLAIMANT)</strong>로 저장됩니다. 로그인·권한 검사는 추후 연동 예정입니다.</p>
+
+  <% if (ok) { %>
+    <p class="success">계정이 생성되었습니다.</p>
+  <% } %>
+
+  <form method="post" action="/admin/users" class="form">
+    <div class="field">
+      <label for="loginId">로그인 아이디</label>
+      <input id="loginId" name="loginId" type="text" maxlength="50" value="<%= values.loginId %>" autocomplete="username" />
+      <% if (errors.loginId) { %><span class="field-error"><%= errors.loginId %></span><% } %>
+    </div>
+    <div class="field">
+      <label for="password">비밀번호</label>
+      <input id="password" name="password" type="password" minlength="8" autocomplete="new-password" />
+      <% if (errors.password) { %><span class="field-error"><%= errors.password %></span><% } %>
+    </div>
+    <div class="field">
+      <label for="name">이름</label>
+      <input id="name" name="name" type="text" maxlength="100" value="<%= values.name %>" autocomplete="name" />
+      <% if (errors.name) { %><span class="field-error"><%= errors.name %></span><% } %>
+    </div>
+    <button type="submit">계정 생성</button>
+  </form>
+
+  <p><a href="/">홈으로</a></p>
+</main>
+<%- include('../partials/foot') %>

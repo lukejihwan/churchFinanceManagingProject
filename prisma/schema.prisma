@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  CLAIMANT
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+  CANCELED
+}
+
+enum ApprovalActionType {
+  SUBMIT
+  APPROVE
+  REJECT
+  CANCEL
+  PAY
+}
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  loginId        String   @unique @map("login_id") @db.VarChar(50)
+  passwordHash   String   @map("password_hash") @db.VarChar(255)
+  name           String   @db.VarChar(100)
+  role           UserRole
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  createdBudgets Budget[] @relation("BudgetCreatedBy")
+  claims         Claim[]
+  permissions    BudgetItemUserPermission[]
+  approvalLogs   ClaimApprovalLog[] @relation("ApprovalActionBy")
+
+  @@map("users")
+}
+
+model FiscalYear {
+  id        BigInt   @id @default(autoincrement()) @db.BigInt
+  year      Int      @unique
+  name      String   @db.VarChar(100)
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  isClosed  Boolean  @default(false) @map("is_closed")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  budgets   Budget[]
+  claims    Claim[]
+
+  @@map("fiscal_years")
+}
+
+model Budget {
+  id           BigInt    @id @default(autoincrement()) @db.BigInt
+  fiscalYearId BigInt    @map("fiscal_year_id") @db.BigInt
+  title        String    @db.VarChar(150)
+  totalAmount  Decimal   @map("total_amount") @db.Decimal(15, 2)
+  description  String?   @db.Text
+  createdById  String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  fiscalYear   FiscalYear @relation(fields: [fiscalYearId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy    User?      @relation("BudgetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  items        BudgetItem[]
+
+  @@index([fiscalYearId])
+  @@index([createdById])
+  @@map("budgets")
+}
+
+model BudgetItem {
+  id              BigInt    @id @default(autoincrement()) @db.BigInt
+  budgetId        BigInt    @map("budget_id") @db.BigInt
+  code            String?   @db.VarChar(50)
+  name            String    @db.VarChar(150)
+  allocatedAmount Decimal   @map("allocated_amount") @db.Decimal(15, 2)
+  sortOrder       Int       @default(0) @map("sort_order")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  budget          Budget                      @relation(fields: [budgetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  permissions     BudgetItemUserPermission[]
+  claims          Claim[]
+
+  @@index([budgetId])
+  @@unique([budgetId, name])
+  @@unique([budgetId, code])
+  @@map("budget_items")
+}
+
+model BudgetItemUserPermission {
+  id           BigInt   @id @default(autoincrement()) @db.BigInt
+  userId       String   @map("user_id") @db.Uuid
+  budgetItemId BigInt   @map("budget_item_id") @db.BigInt
+  canClaim     Boolean  @default(true) @map("can_claim")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([userId, budgetItemId])
+  @@index([budgetItemId])
+  @@map("budget_item_user_permissions")
+}
+
+model Claim {
+  id            BigInt      @id @default(autoincrement()) @db.BigInt
+  claimNo       String      @unique @map("claim_no") @db.VarChar(50)
+  userId        String      @map("user_id") @db.Uuid
+  budgetItemId  BigInt      @map("budget_item_id") @db.BigInt
+  fiscalYearId  BigInt      @map("fiscal_year_id") @db.BigInt
+  claimAmount   Decimal     @map("claim_amount") @db.Decimal(15, 2)
+  claimDate     DateTime    @map("claim_date") @db.Date
+  title         String      @db.VarChar(150)
+  description   String?     @db.Text
+  status        ClaimStatus @default(DRAFT)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  budgetItem    BudgetItem  @relation(fields: [budgetItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fiscalYear    FiscalYear  @relation(fields: [fiscalYearId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  attachments   ClaimAttachment[]
+  approvalLogs  ClaimApprovalLog[]
+
+  @@index([userId])
+  @@index([budgetItemId])
+  @@index([fiscalYearId])
+  @@index([status])
+  @@index([claimDate])
+  @@map("claims")
+}
+
+model ClaimAttachment {
+  id           BigInt   @id @default(autoincrement()) @db.BigInt
+  claimId      BigInt   @map("claim_id") @db.BigInt
+  filePath     String   @map("file_path") @db.VarChar(500)
+  originalName String   @map("original_name") @db.VarChar(255)
+  mimeType     String?  @map("mime_type") @db.VarChar(100)
+  fileSize     BigInt?  @map("file_size") @db.BigInt
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  claim        Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([claimId])
+  @@map("claim_attachments")
+}
+
+model ClaimApprovalLog {
+  id           BigInt             @id @default(autoincrement()) @db.BigInt
+  claimId       BigInt            @map("claim_id") @db.BigInt
+  actionById    String?           @map("action_by") @db.Uuid
+  actionType    ApprovalActionType @map("action_type")
+  comment       String?           @db.Text
+  actionAt      DateTime          @default(now()) @map("action_at")
+
+  claim         Claim             @relation(fields: [claimId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  actionBy      User?             @relation("ApprovalActionBy", fields: [actionById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([claimId])
+  @@index([actionById])
+  @@index([actionType])
+  @@map("claim_approval_logs")
+}

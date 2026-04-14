@@ -1,0 +1,12 @@
+<%- include('partials/head', { title: typeof message !== 'undefined' ? message : '오류' }) %>
+<main class="container">
+  <h1><%= message %></h1>
+  <% if (typeof error !== 'undefined' && error.status) { %>
+    <h2><%= error.status %></h2>
+  <% } %>
+  <% if (typeof error !== 'undefined' && error.stack) { %>
+    <pre><%= error.stack %></pre>
+  <% } %>
+  <p><a href="/">홈으로</a></p>
+</main>
+<%- include('partials/foot') %>
