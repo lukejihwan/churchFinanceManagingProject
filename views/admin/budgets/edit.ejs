@@ -1,0 +1,67 @@
+<%- include('../../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="container budget-edit">
+  <h1><%= title %></h1>
+  <p>회계연도: <strong><%= fiscalYear.year %></strong> · <%= fiscalYear.name %></p>
+
+  <% if (typeof saved !== 'undefined' && saved) { %>
+    <p class="success">저장되었습니다.</p>
+  <% } %>
+  <% if (saveError) { %>
+    <p class="flash-error" role="alert"><%= saveError %></p>
+  <% } %>
+
+  <form id="budget-form" method="post" action="/admin/budgets/<%= budget.id %>/edit" class="form">
+    <input type="hidden" name="itemsJson" id="itemsJson" value="[]" />
+
+    <div class="field">
+      <label for="title">예산안 제목</label>
+      <input id="title" name="title" type="text" maxlength="150" value="<%= budget.title %>" required />
+    </div>
+    <div class="field">
+      <label for="totalAmount">총 예산 (원)</label>
+      <input id="totalAmount" name="totalAmount" type="text" inputmode="decimal" value="<%= totalStr %>" />
+    </div>
+    <div class="field">
+      <label for="description">설명 (선택)</label>
+      <textarea id="description" name="description" rows="2"><%= budget.description || '' %></textarea>
+    </div>
+
+    <section class="budget-summary" aria-label="예산 합계">
+      <p><strong>항목 배정 합계</strong>: <span id="items-sum-display"><%= itemsSumStr %></span> 원</p>
+      <p><strong>총 예산</strong>: <span id="total-display"><%= totalStr %></span> 원 (위 입력과 동일)</p>
+      <p class="hint"><strong>차이</strong> (총 예산 − 항목 합): <span id="diff-display"><%= diffStr %></span> 원 — 합계가 달라도 저장할 수 있습니다.</p>
+    </section>
+
+    <h2>예산 항목</h2>
+    <p class="hint">부모 항목명은 같은 예산에 있는 다른 행의 항목명과 정확히 같게 적습니다. 비우면 최상위입니다. 예산 안에서는 항목명이 서로 겹치면 안 됩니다. 새 행은 저장 시 순서대로 만들어집니다.</p>
+
+    <table class="data-table budget-items-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>부모 항목명</th>
+          <th>항목명</th>
+          <th>배정액</th>
+          <th>정렬</th>
+        </tr>
+      </thead>
+      <tbody id="item-rows">
+        <% flatItems.forEach((it) => { %>
+          <tr data-item-row="" data-id="<%= String(it.id) %>">
+            <td><%= String(it.id) %></td>
+            <td><input class="js-parent-name" type="text" maxlength="150" value="<%= it.parentName || '' %>" placeholder="(최상위)" autocomplete="off" /></td>
+            <td><input class="js-name" type="text" maxlength="150" value="<%= it.name %>" required /></td>
+            <td><input class="js-amount" type="text" inputmode="decimal" value="<%= it.allocatedAmount.toFixed ? it.allocatedAmount.toFixed(2) : it.allocatedAmount %>" /></td>
+            <td><input class="js-sort" type="number" value="<%= it.sortOrder %>" /></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <p><button type="button" id="btn-add-row">항목 행 추가 (최상위)</button></p>
+    <p><button type="submit">저장</button> <a href="/admin/fiscal-years">회계연도 목록</a></p>
+  </form>
+</main>
+<%- include('../../partials/foot') %>
+<script src="/js/budget-edit.js" defer></script>

@@ -1,0 +1,30 @@
+<%- include('../../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="container">
+  <h1><%= title %></h1>
+  <form method="post" action="/admin/fiscal-years" class="form">
+    <div class="field">
+      <label for="year">연도 (정수)</label>
+      <input id="year" name="year" type="number" min="1900" max="2200" value="<%= values.year %>" required />
+      <% if (errors.year) { %><span class="field-error"><%= errors.year %></span><% } %>
+    </div>
+    <div class="field">
+      <label for="name">표시 이름</label>
+      <input id="name" name="name" type="text" maxlength="100" value="<%= values.name %>" required />
+      <% if (errors.name) { %><span class="field-error"><%= errors.name %></span><% } %>
+    </div>
+    <div class="field">
+      <label for="startDate">시작일</label>
+      <input id="startDate" name="startDate" type="date" value="<%= values.startDate %>" required />
+      <% if (errors.startDate) { %><span class="field-error"><%= errors.startDate %></span><% } %>
+    </div>
+    <div class="field">
+      <label for="endDate">종료일</label>
+      <input id="endDate" name="endDate" type="date" value="<%= values.endDate %>" required />
+      <% if (errors.endDate) { %><span class="field-error"><%= errors.endDate %></span><% } %>
+    </div>
+    <button type="submit">등록</button>
+    <a href="/admin/fiscal-years">취소</a>
+  </form>
+</main>
+<%- include('../../partials/foot') %>

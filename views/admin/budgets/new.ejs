@@ -1,0 +1,26 @@
+<%- include('../../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="container">
+  <h1><%= title %></h1>
+  <p>회계연도: <strong><%= fiscalYear.year %></strong> · <%= fiscalYear.name %></p>
+  <% if (errors.form) { %><p class="flash-error"><%= errors.form %></p><% } %>
+  <form method="post" action="/admin/budgets" class="form">
+    <input type="hidden" name="fiscalYearId" value="<%= fiscalYear.id %>" />
+    <div class="field">
+      <label for="title">예산안 제목</label>
+      <input id="title" name="title" type="text" maxlength="150" value="<%= values.title %>" required />
+      <% if (errors.title) { %><span class="field-error"><%= errors.title %></span><% } %>
+    </div>
+    <div class="field">
+      <label for="totalAmount">총 예산 (원)</label>
+      <input id="totalAmount" name="totalAmount" type="text" inputmode="decimal" value="<%= values.totalAmount %>" />
+    </div>
+    <div class="field">
+      <label for="description">설명 (선택)</label>
+      <textarea id="description" name="description" rows="3"><%= values.description %></textarea>
+    </div>
+    <button type="submit">만들고 항목 편집으로</button>
+    <a href="/admin/fiscal-years">취소</a>
+  </form>
+</main>
+<%- include('../../partials/foot') %>

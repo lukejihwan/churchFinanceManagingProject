@@ -1,7 +1,6 @@
 import express from "express";
 import { prisma } from "../src/config/db.js";
 import { hashPassword } from "../src/lib/password.js";
-
 const router = express.Router();
 
 function validateBody(body) {

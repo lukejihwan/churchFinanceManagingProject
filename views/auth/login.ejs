@@ -1,0 +1,26 @@
+<%- include('../partials/head', { title }) %>
+<main class="container">
+  <h1><%= title %></h1>
+
+  <% if (flashError) { %>
+    <p class="flash-error" role="alert"><%= flashError %></p>
+  <% } %>
+
+  <form method="post" action="/login" class="form">
+    <input type="hidden" name="returnUrl" value="<%= returnUrl %>" />
+    <div class="field">
+      <label for="loginId">아이디</label>
+      <input id="loginId" name="loginId" type="text" maxlength="50" value="<%= values.loginId %>" autocomplete="username" required />
+      <% if (errors.loginId) { %><span class="field-error"><%= errors.loginId %></span><% } %>
+    </div>
+    <div class="field">
+      <label for="password">비밀번호</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <% if (errors.password) { %><span class="field-error"><%= errors.password %></span><% } %>
+    </div>
+    <button type="submit">로그인</button>
+  </form>
+
+  <p><a href="/">홈으로</a></p>
+</main>
+<%- include('../partials/foot') %>

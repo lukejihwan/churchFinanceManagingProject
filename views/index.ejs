@@ -2,6 +2,19 @@
 <main class="container">
   <h1><%= title %></h1>
   <p>교회 재정 관리 시스템입니다.</p>
-  <p><a href="/admin/users/new">사용자 계정 생성 (관리자)</a> — 로그인 연동 전까지 누구나 접근 가능합니다.</p>
+
+  <% if (currentUser) { %>
+    <p class="user-greeting"><strong><%= currentUser.name %></strong>님 (<%= currentUser.loginId %>) 로그인됨 · 역할: <%= currentUser.role %></p>
+    <form method="post" action="/logout" class="inline-form">
+      <button type="submit">로그아웃</button>
+    </form>
+  <% } else { %>
+    <p><a href="/login">로그인</a></p>
+  <% } %>
+
+  <% if (currentUser && currentUser.role === 'ADMIN') { %>
+    <p><a href="/admin/fiscal-years">회계연도·예산 편성</a></p>
+    <p><a href="/admin/users/new">사용자 계정 생성</a></p>
+  <% } %>
 </main>
 <%- include('partials/foot') %>

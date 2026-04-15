@@ -1,0 +1,37 @@
+<%- include('../../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="container">
+  <h1><%= title %></h1>
+  <p><a href="/admin/fiscal-years/new" class="button-link">회계연도 등록</a></p>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>연도</th>
+        <th>이름</th>
+        <th>기간</th>
+        <th>마감</th>
+        <th>예산안</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% fiscalYears.forEach((fy) => { %>
+        <tr>
+          <td><%= fy.year %></td>
+          <td><%= fy.name %></td>
+          <td><%= fy.startDate.toISOString().slice(0, 10) %> ~ <%= fy.endDate.toISOString().slice(0, 10) %></td>
+          <td><%= fy.isClosed ? '예' : '아니오' %></td>
+          <td>
+            <% if (fy.budget) { %>
+              <a href="/admin/budgets/<%= fy.budget.id %>/edit">편집</a>
+            <% } else if (!fy.isClosed) { %>
+              <a href="/admin/budgets/new?fiscalYearId=<%= fy.id %>">만들기</a>
+            <% } else { %>
+              —
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</main>
+<%- include('../../partials/foot') %>

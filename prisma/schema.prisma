@@ -84,6 +84,7 @@ model Budget {
   createdBy    User?      @relation("BudgetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
   items        BudgetItem[]
 
+  @@unique([fiscalYearId])
   @@index([fiscalYearId])
   @@index([createdById])
   @@map("budgets")
@@ -92,6 +93,7 @@ model Budget {
 model BudgetItem {
   id              BigInt    @id @default(autoincrement()) @db.BigInt
   budgetId        BigInt    @map("budget_id") @db.BigInt
+  parentId        BigInt?   @map("parent_budget_id") @db.BigInt
   code            String?   @db.VarChar(50)
   name            String    @db.VarChar(150)
   allocatedAmount Decimal   @map("allocated_amount") @db.Decimal(15, 2)
@@ -101,12 +103,13 @@ model BudgetItem {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   budget          Budget                      @relation(fields: [budgetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parent          BudgetItem?                 @relation("BudgetItemHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  children        BudgetItem[]                @relation("BudgetItemHierarchy")
   permissions     BudgetItemUserPermission[]
   claims          Claim[]
 
   @@index([budgetId])
-  @@unique([budgetId, name])
-  @@unique([budgetId, code])
+  @@index([budgetId, parentId])
   @@map("budget_items")
 }
 
