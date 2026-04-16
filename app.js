@@ -11,6 +11,7 @@ import indexRouter from "./routes/index.js";
 import usersRouter from "./routes/users.js";
 import adminRouter from "./routes/admin.js";
 import authRouter from "./routes/auth.js";
+import claimsRouter from "./routes/claims.js";
 import { attachSessionUser } from "./src/middleware/sessionUser.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -48,6 +49,7 @@ app.use(
 app.use(attachSessionUser);
 
 app.use("/", authRouter);
+app.use("/", claimsRouter);
 app.use("/", indexRouter);
 app.use("/users", usersRouter);
 app.use("/admin", adminRouter);

@@ -31,3 +31,24 @@ export function flattenBudgetItemsForEdit(items) {
   walk("root");
   return out;
 }
+
+/**
+ * 예산 항목 선택용: 트리 순서·들여쓰기 라벨
+ * @param {Array<{ id: bigint, parentId: bigint | null, sortOrder: number, name: string, code?: string | null }>} items
+ * @returns {Array<{ id: bigint, label: string }>}
+ */
+export function flattenBudgetItemsForSelect(items) {
+  const flat = flattenBudgetItemsForEdit(items);
+  const idToDepth = new Map();
+  for (const it of flat) {
+    const d =
+      it.parentId == null ? 0 : (idToDepth.get(String(it.parentId)) ?? 0) + 1;
+    idToDepth.set(String(it.id), d);
+  }
+  return flat.map((it) => {
+    const depth = idToDepth.get(String(it.id)) ?? 0;
+    const prefix = "  ".repeat(depth);
+    const codePart = it.code ? ` (${it.code})` : "";
+    return { id: it.id, label: `${prefix}${it.name}${codePart}` };
+  });
+}

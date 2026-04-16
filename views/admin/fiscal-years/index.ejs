@@ -10,6 +10,7 @@
         <th>이름</th>
         <th>기간</th>
         <th>마감</th>
+        <th>청구 활성</th>
         <th>예산안</th>
       </tr>
     </thead>
@@ -20,6 +21,18 @@
           <td><%= fy.name %></td>
           <td><%= fy.startDate.toISOString().slice(0, 10) %> ~ <%= fy.endDate.toISOString().slice(0, 10) %></td>
           <td><%= fy.isClosed ? '예' : '아니오' %></td>
+          <td>
+            <% if (fy.isActiveForClaims) { %>
+              <span class="success">현재</span>
+            <% } %>
+            <% if (!fy.isClosed) { %>
+              <form method="post" action="/admin/fiscal-years/<%= String(fy.id) %>/activate-for-claims" class="inline-form">
+                <button type="submit">청구용 활성으로</button>
+              </form>
+            <% } else { %>
+              —
+            <% } %>
+          </td>
           <td>
             <% if (fy.budget) { %>
               <a href="/admin/budgets/<%= fy.budget.id %>/edit">편집</a>

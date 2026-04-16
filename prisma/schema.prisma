@@ -55,14 +55,15 @@ model User {
 }
 
 model FiscalYear {
-  id        BigInt   @id @default(autoincrement()) @db.BigInt
-  year      Int      @unique
-  name      String   @db.VarChar(100)
-  startDate DateTime @map("start_date") @db.Date
-  endDate   DateTime @map("end_date") @db.Date
-  isClosed  Boolean  @default(false) @map("is_closed")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                  BigInt   @id @default(autoincrement()) @db.BigInt
+  year                Int      @unique
+  name                String   @db.VarChar(100)
+  startDate           DateTime @map("start_date") @db.Date
+  endDate             DateTime @map("end_date") @db.Date
+  isClosed            Boolean  @default(false) @map("is_closed")
+  isActiveForClaims   Boolean  @default(false) @map("is_active_for_claims")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   budgets   Budget[]
   claims    Claim[]
@@ -134,11 +135,11 @@ model Claim {
   userId        String      @map("user_id") @db.Uuid
   budgetItemId  BigInt      @map("budget_item_id") @db.BigInt
   fiscalYearId  BigInt      @map("fiscal_year_id") @db.BigInt
-  claimAmount   Decimal     @map("claim_amount") @db.Decimal(15, 2)
+  claimAmount   Int         @map("claim_amount")
   claimDate     DateTime    @map("claim_date") @db.Date
   title         String      @db.VarChar(150)
   description   String?     @db.Text
-  status        ClaimStatus @default(DRAFT)
+  status        ClaimStatus @default(SUBMITTED)
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 

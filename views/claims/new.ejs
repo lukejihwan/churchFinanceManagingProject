@@ -1,0 +1,62 @@
+<%- include('../partials/head', { title }) %>
+<main class="container claim-page">
+  <h1><%= title %></h1>
+  <p class="user-greeting">
+    <strong><%= currentUser.name %></strong>님 ·
+    <form method="post" action="/logout" class="inline-form"><button type="submit">로그아웃</button></form>
+  </p>
+
+  <% if (submittedOk) { %>
+    <p class="flash-success">청구가 접수되었습니다.</p>
+  <% } %>
+
+  <% if (errors._form) { %>
+    <p class="flash-error" role="alert"><%= errors._form %></p>
+  <% } %>
+
+  <% if (!activeFy) { %>
+    <p>청구할 수 있는 <strong>활성 회계연도</strong>가 없습니다. 관리자에게 활성 회계연도 설정을 요청하세요.</p>
+  <% } else if (budgetItemOptions.length === 0) { %>
+    <p>활성 회계연도(<strong><%= activeFy.year %>년 · <%= activeFy.name %></strong>)에 예산 항목이 없습니다. 관리자에게 예산 편성을 요청하세요.</p>
+  <% } else { %>
+    <p class="hint">활성 회계연도: <strong><%= activeFy.year %>년</strong> · <%= activeFy.name %></p>
+
+    <form method="post" action="/claims" enctype="multipart/form-data" class="stack-form">
+      <label>
+        제목
+        <input type="text" name="title" maxlength="150" value="<%= values.title %>" placeholder="비우면 «청구»로 저장됩니다" />
+      </label>
+
+      <label>
+        예산 항목 <span class="req">*</span>
+        <select name="budgetItemId" required>
+          <option value="">선택하세요</option>
+          <% budgetItemOptions.forEach((opt) => { %>
+            <option value="<%= String(opt.id) %>" <%= String(values.budgetItemId || '') === String(opt.id) ? 'selected' : '' %>><%= opt.label %></option>
+          <% }); %>
+        </select>
+      </label>
+      <% if (errors.budgetItemId) { %><p class="field-error"><%= errors.budgetItemId %></p><% } %>
+
+      <label>
+        청구 금액(원, 정수) <span class="req">*</span>
+        <input type="number" name="claimAmount" min="1" max="2147483647" step="1" required value="<%= values.claimAmount %>" />
+      </label>
+      <% if (errors.claimAmount) { %><p class="field-error"><%= errors.claimAmount %></p><% } %>
+
+      <label>
+        비고
+        <textarea name="description" rows="3" maxlength="2000"><%= values.description %></textarea>
+      </label>
+
+      <label>
+        영수증 이미지 <span class="req">*</span> (여러 장, JPEG/PNG/GIF/WebP, 파일당 최대 15MB)
+        <input type="file" name="receipts" accept="image/jpeg,image/png,image/gif,image/webp" multiple required />
+      </label>
+      <% if (errors.receipts) { %><p class="field-error"><%= errors.receipts %></p><% } %>
+
+      <p><button type="submit">제출</button></p>
+    </form>
+  <% } %>
+</main>
+<%- include('../partials/foot') %>

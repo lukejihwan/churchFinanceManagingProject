@@ -74,6 +74,34 @@ router.post("/", async (req, res, next) => {
   }
 });
 
+router.post("/:id/activate-for-claims", async (req, res, next) => {
+  let id;
+  try {
+    id = BigInt(req.params.id);
+  } catch {
+    return next(createError(404));
+  }
+  try {
+    const fy = await prisma.fiscalYear.findUnique({ where: { id } });
+    if (!fy) return next(createError(404));
+    if (fy.isClosed) {
+      return res
+        .status(400)
+        .send("마감된 회계연도는 청구용 활성 회계연도로 설정할 수 없습니다.");
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.fiscalYear.updateMany({ data: { isActiveForClaims: false } });
+      await tx.fiscalYear.update({
+        where: { id },
+        data: { isActiveForClaims: true },
+      });
+    });
+    return res.redirect("/admin/fiscal-years");
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get("/:id", async (req, res, next) => {
   let id;
   try {

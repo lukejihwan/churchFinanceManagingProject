@@ -18,3 +18,14 @@ export function requireAdmin(req, res, next) {
   }
   next();
 }
+
+export function requireClaimant(req, res, next) {
+  if (!res.locals.currentUser) {
+    const nextUrl = encodeURIComponent(req.originalUrl || "/");
+    return res.redirect(`/login?next=${nextUrl}`);
+  }
+  if (res.locals.currentUser.role !== "CLAIMANT") {
+    return next(createError(403, "청구자만 접근할 수 있습니다."));
+  }
+  next();
+}

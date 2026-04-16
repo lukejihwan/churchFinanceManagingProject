@@ -54,6 +54,35 @@ a {
   font-weight: 600;
 }
 
+.flash-success {
+  color: #0a6;
+  font-weight: 600;
+}
+
+.req {
+  color: #c33;
+}
+
+.stack-form label {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.stack-form input[type="text"],
+.stack-form input[type="number"],
+.stack-form select,
+.stack-form textarea {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  margin-top: 0.25rem;
+  box-sizing: border-box;
+}
+
+.claim-page {
+  max-width: 36rem;
+}
+
 .user-greeting {
   margin-bottom: 0.5rem;
 }

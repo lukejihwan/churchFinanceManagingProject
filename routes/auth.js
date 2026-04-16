@@ -24,6 +24,9 @@ function safeReturnUrl(raw) {
 
 router.get("/login", (req, res) => {
   if (res.locals.currentUser) {
+    if (res.locals.currentUser.role === "CLAIMANT") {
+      return res.redirect("/claims/new");
+    }
     return res.redirect("/");
   }
   const returnUrl = safeReturnUrl(req.query.next);
@@ -38,6 +41,9 @@ router.get("/login", (req, res) => {
 
 router.post("/login", async (req, res, next) => {
   if (res.locals.currentUser) {
+    if (res.locals.currentUser.role === "CLAIMANT") {
+      return res.redirect("/claims/new");
+    }
     return res.redirect("/");
   }
 
@@ -85,6 +91,9 @@ router.post("/login", async (req, res, next) => {
     req.session.name = user.name;
     req.session.role = user.role;
 
+    if (user.role === "CLAIMANT") {
+      return res.redirect("/claims/new");
+    }
     return res.redirect(safeReturnUrl(req.body.returnUrl));
   } catch (e) {
     return next(e);
