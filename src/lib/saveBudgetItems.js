@@ -1,4 +1,3 @@
-import { Prisma } from "../generated/prisma/index.js";
 import { assertNoParentCycle, assertParentSameBudget } from "./budgetItemHierarchy.js";
 import {
   buildBudgetItemPathLookup,
@@ -6,9 +5,12 @@ import {
   parseBudgetItemPathSegments,
 } from "./budgetItemPath.js";
 
-function toDecimal(v) {
-  const s = typeof v === "string" ? v.trim() : String(v ?? "0");
-  return new Prisma.Decimal(s.length ? s : "0");
+/** 총 예산(원, 정수). 콤마 제거 후 반올림. */
+export function parseTotalAmountBigInt(v) {
+  const raw = typeof v === "string" ? v.trim().replace(/,/g, "") : String(v ?? "0");
+  const n = parseFloat(raw.length ? raw : "0");
+  if (!Number.isFinite(n)) return 0n;
+  return BigInt(Math.round(n));
 }
 
 /** 배정액(원, 정수). 소수 입력은 반올림합니다. */
@@ -169,7 +171,7 @@ export async function saveBudgetWithItems(prisma, opts) {
       where: { id: budgetId },
       data: {
         title: title.trim(),
-        totalAmount: toDecimal(totalAmount),
+        totalAmount: parseTotalAmountBigInt(totalAmount),
         description: description?.trim() || null,
       },
     });

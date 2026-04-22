@@ -23,10 +23,10 @@ function recalc() {
   document.querySelectorAll("tr[data-item-row] .js-amount").forEach((inp) => {
     sum += parseAllocatedInt(inp.value);
   });
-  const total = parseMoney(totalInput.value);
+  const total = parseAllocatedInt(totalInput.value);
   sumEl.textContent = formatIntKo(sum);
-  totalEl.textContent = total.toFixed(2);
-  diffEl.textContent = (total - sum).toFixed(2);
+  totalEl.textContent = formatIntKo(total);
+  diffEl.textContent = formatIntKo(total - sum);
 }
 
 function buildPayload() {
@@ -34,7 +34,7 @@ function buildPayload() {
     id: tr.dataset.id || "",
     path: tr.querySelector(".js-path")?.value?.trim() ?? "",
     amount: tr.querySelector(".js-amount")?.value ?? "0",
-    sortOrder: Number(tr.querySelector(".js-sort")?.value ?? idx),
+    sortOrder: idx,
   }));
 }
 
@@ -60,6 +60,17 @@ document.getElementById("item-rows")?.addEventListener("focusout", (e) => {
   inp.value = formatIntKo(parseAllocatedInt(inp.value));
   recalc();
 });
+
+/** 총 예산: 편집 시 콤마 제거, 마칠 때 천 단위 표시 */
+document.getElementById("totalAmount")?.addEventListener("focusin", (e) => {
+  const inp = e.target;
+  inp.value = String(parseAllocatedInt(inp.value));
+});
+document.getElementById("totalAmount")?.addEventListener("focusout", (e) => {
+  const inp = e.target;
+  inp.value = formatIntKo(parseAllocatedInt(inp.value));
+  recalc();
+});
 document.getElementById("totalAmount")?.addEventListener("input", recalc);
 
 document.getElementById("btn-add-row")?.addEventListener("click", () => {
@@ -72,7 +83,7 @@ document.getElementById("btn-add-row")?.addEventListener("click", () => {
     <td class="outline-cell">—</td>
     <td><input class="js-path" type="text" maxlength="2000" required autocomplete="off" /></td>
     <td><input class="js-amount" type="text" value="0" /></td>
-    <td><input class="js-sort" type="number" value="0" /></td>
+    <td class="col-claim-total">0</td>
   `;
   tbody.appendChild(tr);
 });

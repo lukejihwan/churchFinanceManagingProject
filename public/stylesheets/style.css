@@ -186,8 +186,7 @@ a {
 }
 
 .budget-items-table .js-path,
-.budget-items-table .js-amount,
-.budget-items-table .js-sort {
+.budget-items-table .js-amount {
   width: 100%;
   box-sizing: border-box;
 }
@@ -196,7 +195,13 @@ a {
   max-width: 28rem;
 }
 
-.budget-items-table .js-amount,
-.budget-items-table .js-sort {
+.budget-items-table .js-amount {
+  max-width: 10rem;
+}
+
+.budget-items-table .col-claim-total {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
   max-width: 10rem;
 }

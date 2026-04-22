@@ -75,7 +75,7 @@ model Budget {
   id           BigInt    @id @default(autoincrement()) @db.BigInt
   fiscalYearId BigInt    @map("fiscal_year_id") @db.BigInt
   title        String    @db.VarChar(150)
-  totalAmount  Decimal   @map("total_amount") @db.Decimal(15, 2)
+  totalAmount  BigInt    @map("total_amount") @db.BigInt
   description  String?   @db.Text
   createdById  String?   @map("created_by") @db.Uuid
   createdAt    DateTime  @default(now()) @map("created_at")

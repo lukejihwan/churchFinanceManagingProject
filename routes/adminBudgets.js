@@ -1,9 +1,8 @@
 import express from "express";
 import createError from "http-errors";
-import { Prisma } from "../src/generated/prisma/index.js";
 import { prisma } from "../src/config/db.js";
-import { flattenBudgetItemsForEdit } from "../src/lib/budgetItemTree.js";
-import { saveBudgetWithItems } from "../src/lib/saveBudgetItems.js";
+import { flatBudgetItemsWithSubmittedClaimRollup } from "../src/lib/budgetClaimRollup.js";
+import { parseTotalAmountBigInt, saveBudgetWithItems } from "../src/lib/saveBudgetItems.js";
 
 const router = express.Router();
 
@@ -72,7 +71,7 @@ router.post("/", async (req, res, next) => {
       data: {
         fiscalYearId,
         title,
-        totalAmount: new Prisma.Decimal(totalAmount.length ? totalAmount : "0"),
+        totalAmount: parseTotalAmountBigInt(totalAmount),
         description,
         createdById: res.locals.currentUser?.id ?? null,
       },
@@ -109,11 +108,11 @@ router.get("/:id/edit", async (req, res, next) => {
       },
     });
     if (!budget) return next(createError(404));
-    const flat = flattenBudgetItemsForEdit(budget.items);
+    const flat = await flatBudgetItemsWithSubmittedClaimRollup(prisma, budget.fiscalYearId, budget.items);
     const itemsSum = sumAllocated(budget.items);
     const itemsSumStr = formatIntKo(itemsSum);
-    const totalStr = budget.totalAmount.toFixed(2);
-    const diffStr = budget.totalAmount.minus(String(itemsSum)).toFixed(2);
+    const totalStr = formatIntKo(budget.totalAmount);
+    const diffStr = formatIntKo(Number(budget.totalAmount) - itemsSum);
     res.render("admin/budgets/edit", {
       title: "예산 편집",
       budget,
@@ -160,16 +159,16 @@ router.post("/:id/edit", async (req, res, next) => {
     }
 
     if (!title) {
-      const flat = flattenBudgetItemsForEdit(budget.items);
+      const flat = await flatBudgetItemsWithSubmittedClaimRollup(prisma, budget.fiscalYearId, budget.items);
       const itemsSum = sumAllocated(budget.items);
       return res.status(400).render("admin/budgets/edit", {
         title: "예산 편집",
-        budget: { ...budget, title, totalAmount: new Prisma.Decimal(totalAmount.length ? totalAmount : "0"), description },
+        budget: { ...budget, title, totalAmount: parseTotalAmountBigInt(totalAmount), description },
         fiscalYear: budget.fiscalYear,
         flatItems: flat,
         itemsSumStr: formatIntKo(itemsSum),
-        totalStr: new Prisma.Decimal(totalAmount.length ? totalAmount : "0").toFixed(2),
-        diffStr: new Prisma.Decimal(totalAmount.length ? totalAmount : "0").minus(String(itemsSum)).toFixed(2),
+        totalStr: formatIntKo(parseTotalAmountBigInt(totalAmount)),
+        diffStr: formatIntKo(Number(parseTotalAmountBigInt(totalAmount)) - itemsSum),
         saveError: "제목을 입력하세요.",
         saved: false,
       });
@@ -191,7 +190,7 @@ router.post("/:id/edit", async (req, res, next) => {
         include: { fiscalYear: true, items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } },
       });
       if (!budget) return next(e);
-      const flat = flattenBudgetItemsForEdit(budget.items);
+      const flat = await flatBudgetItemsWithSubmittedClaimRollup(prisma, budget.fiscalYearId, budget.items);
       const itemsSum = sumAllocated(budget.items);
       return res.status(400).render("admin/budgets/edit", {
         title: "예산 편집",
@@ -199,8 +198,8 @@ router.post("/:id/edit", async (req, res, next) => {
         fiscalYear: budget.fiscalYear,
         flatItems: flat,
         itemsSumStr: formatIntKo(itemsSum),
-        totalStr: budget.totalAmount.toFixed(2),
-        diffStr: budget.totalAmount.minus(String(itemsSum)).toFixed(2),
+        totalStr: formatIntKo(budget.totalAmount),
+        diffStr: formatIntKo(Number(budget.totalAmount) - itemsSum),
         saveError: e.message || "저장에 실패했습니다.",
         saved: false,
       });

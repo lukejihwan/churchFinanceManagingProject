@@ -20,7 +20,7 @@
     </div>
     <div class="field">
       <label for="totalAmount">총 예산 (원)</label>
-      <input id="totalAmount" name="totalAmount" type="text" inputmode="decimal" value="<%= totalStr %>" />
+      <input id="totalAmount" name="totalAmount" type="text" inputmode="numeric" value="<%= totalStr %>" />
     </div>
     <div class="field">
       <label for="description">설명 (선택)</label>
@@ -34,7 +34,7 @@
     </section>
 
     <h2>예산 항목</h2>
-    <p class="hint">항목명은 루트부터 <code>/</code> 로 구분해 적습니다. 예: <code>운영비</code>, <code>운영비/CM모임</code>. 상위 경로가 표에 없으면 저장 시 배정액 0인 상위 항목이 자동 생성됩니다. 정렬 숫자가 작을수록 목록에서 앞에 옵니다.</p>
+    <p class="hint">항목명은 루트부터 <code>/</code> 로 구분해 적습니다. 예: <code>운영비</code>, <code>운영비/CM모임</code>. 상위 경로가 표에 없으면 저장 시 배정액 0인 상위 항목이 자동 생성됩니다. <strong>총 청구금액</strong>은 같은 회계연도에서 상태가 제출(SUBMITTED)인 청구만 합산하며, 상위 행에는 그 아래 모든 하위 항목의 청구가 포함됩니다.</p>
 
     <table class="data-table budget-items-table">
       <thead>
@@ -42,7 +42,7 @@
           <th class="col-outline">번호</th>
           <th>항목명 (경로)</th>
           <th>배정액</th>
-          <th>정렬</th>
+          <th>총 청구금액</th>
         </tr>
       </thead>
       <tbody id="item-rows">
@@ -51,7 +51,7 @@
             <td class="outline-cell"><%= it.outlineNumber %></td>
             <td><input class="js-path" type="text" maxlength="2000" value="<%= it.path %>" required autocomplete="off" /></td>
             <td><input class="js-amount" type="text" inputmode="numeric" value="<%= Number(it.allocatedAmount).toLocaleString('ko-KR') %>" /></td>
-            <td><input class="js-sort" type="number" value="<%= it.sortOrder %>" /></td>
+            <td class="col-claim-total"><%= Number(it.totalClaimAmount).toLocaleString('ko-KR') %></td>
           </tr>
         <% }) %>
       </tbody>
