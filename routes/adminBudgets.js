@@ -8,10 +8,12 @@ import { saveBudgetWithItems } from "../src/lib/saveBudgetItems.js";
 const router = express.Router();
 
 function sumAllocated(items) {
-  return items.reduce(
-    (acc, it) => acc.plus(it.allocatedAmount instanceof Prisma.Decimal ? it.allocatedAmount : new Prisma.Decimal(String(it.allocatedAmount))),
-    new Prisma.Decimal(0),
-  );
+  return items.reduce((acc, it) => acc + Number(it.allocatedAmount), 0);
+}
+
+/** 예산 배정액·합계 표시용 천 단위 구분 (ko-KR) */
+function formatIntKo(n) {
+  return Number(n).toLocaleString("ko-KR");
 }
 
 router.get("/new", async (req, res, next) => {
@@ -109,9 +111,9 @@ router.get("/:id/edit", async (req, res, next) => {
     if (!budget) return next(createError(404));
     const flat = flattenBudgetItemsForEdit(budget.items);
     const itemsSum = sumAllocated(budget.items);
-    const itemsSumStr = itemsSum.toFixed(2);
+    const itemsSumStr = formatIntKo(itemsSum);
     const totalStr = budget.totalAmount.toFixed(2);
-    const diffStr = budget.totalAmount.minus(itemsSum).toFixed(2);
+    const diffStr = budget.totalAmount.minus(String(itemsSum)).toFixed(2);
     res.render("admin/budgets/edit", {
       title: "예산 편집",
       budget,
@@ -165,9 +167,9 @@ router.post("/:id/edit", async (req, res, next) => {
         budget: { ...budget, title, totalAmount: new Prisma.Decimal(totalAmount.length ? totalAmount : "0"), description },
         fiscalYear: budget.fiscalYear,
         flatItems: flat,
-        itemsSumStr: itemsSum.toFixed(2),
+        itemsSumStr: formatIntKo(itemsSum),
         totalStr: new Prisma.Decimal(totalAmount.length ? totalAmount : "0").toFixed(2),
-        diffStr: new Prisma.Decimal(totalAmount.length ? totalAmount : "0").minus(itemsSum).toFixed(2),
+        diffStr: new Prisma.Decimal(totalAmount.length ? totalAmount : "0").minus(String(itemsSum)).toFixed(2),
         saveError: "제목을 입력하세요.",
         saved: false,
       });
@@ -196,9 +198,9 @@ router.post("/:id/edit", async (req, res, next) => {
         budget,
         fiscalYear: budget.fiscalYear,
         flatItems: flat,
-        itemsSumStr: itemsSum.toFixed(2),
+        itemsSumStr: formatIntKo(itemsSum),
         totalStr: budget.totalAmount.toFixed(2),
-        diffStr: budget.totalAmount.minus(itemsSum).toFixed(2),
+        diffStr: budget.totalAmount.minus(String(itemsSum)).toFixed(2),
         saveError: e.message || "저장에 실패했습니다.",
         saved: false,
       });

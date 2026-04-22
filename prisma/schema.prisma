@@ -97,7 +97,7 @@ model BudgetItem {
   parentId        BigInt?   @map("parent_budget_id") @db.BigInt
   code            String?   @db.VarChar(50)
   name            String    @db.VarChar(150)
-  allocatedAmount Decimal   @map("allocated_amount") @db.Decimal(15, 2)
+  allocatedAmount Int       @map("allocated_amount")
   sortOrder       Int       @default(0) @map("sort_order")
   isActive        Boolean   @default(true) @map("is_active")
   createdAt       DateTime  @default(now()) @map("created_at")

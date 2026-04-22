@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import multer from "multer";
 import { prisma } from "../src/config/db.js";
 import { flattenBudgetItemsForSelect } from "../src/lib/budgetItemTree.js";
+import { todayKstDateOnly } from "../src/lib/kstDates.js";
+import { allocateClaimNo } from "../src/lib/claimNumber.js";
 import { requireClaimant, requireLogin } from "../src/middleware/requireAuth.js";
 import { ClaimStatus } from "../src/generated/prisma/index.js";
 
@@ -25,13 +27,6 @@ const IMAGE_MIMES = new Set([
 
 function ensureUploadDir() {
   fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
-}
-
-function todayUtcDateOnly() {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
 }
 
 function extForMime(mime) {
@@ -210,10 +205,11 @@ router.post(
       });
     }
 
-    const claimNo = `CLM-${crypto.randomUUID()}`;
-
     try {
       await prisma.$transaction(async (tx) => {
+        const claimNo = await allocateClaimNo(tx, ctx.activeFy.id, {
+          year: ctx.activeFy.year,
+        });
         const claim = await tx.claim.create({
           data: {
             claimNo,
@@ -221,7 +217,7 @@ router.post(
             budgetItemId,
             fiscalYearId: ctx.activeFy.id,
             claimAmount,
-            claimDate: todayUtcDateOnly(),
+            claimDate: todayKstDateOnly(),
             title: title.slice(0, 150),
             description,
             status: ClaimStatus.SUBMITTED,

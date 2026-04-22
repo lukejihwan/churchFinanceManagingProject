@@ -1,7 +1,19 @@
 import express from "express";
 import createError from "http-errors";
 import { prisma } from "../src/config/db.js";
+import { buildBudgetItemPathLookup } from "../src/lib/budgetItemPath.js";
+import { formatKstYmdHis } from "../src/lib/kstDates.js";
+
 const router = express.Router();
+
+const CLAIM_STATUS_LABEL = {
+  DRAFT: "초안",
+  SUBMITTED: "제출됨",
+  APPROVED: "승인",
+  REJECTED: "반려",
+  PAID: "지급완료",
+  CANCELED: "취소",
+};
 
 router.get("/", async (req, res, next) => {
   try {
@@ -97,6 +109,74 @@ router.post("/:id/activate-for-claims", async (req, res, next) => {
       });
     });
     return res.redirect("/admin/fiscal-years");
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get("/:id/claims", async (req, res, next) => {
+  let id;
+  try {
+    id = BigInt(req.params.id);
+  } catch {
+    return next(createError(404));
+  }
+  try {
+    const fy = await prisma.fiscalYear.findUnique({
+      where: { id },
+      include: {
+        budgets: {
+          take: 1,
+          include: {
+            items: { select: { id: true, parentId: true, name: true } },
+          },
+        },
+      },
+    });
+    if (!fy) return next(createError(404));
+
+    const budget = fy.budgets[0];
+    const pathFor = buildBudgetItemPathLookup(budget?.items ?? []);
+
+    const claims = await prisma.claim.findMany({
+      where: { fiscalYearId: id },
+      orderBy: { createdAt: "asc" },
+      include: {
+        user: { select: { name: true } },
+        budgetItem: { select: { id: true, name: true } },
+        attachments: { orderBy: { id: "asc" }, select: { id: true } },
+      },
+    });
+
+    const asc = [...claims].sort((a, b) => {
+      const t = a.createdAt.getTime() - b.createdAt.getTime();
+      if (t !== 0) return t;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
+    const seqByClaimId = new Map();
+    asc.forEach((c, i) => seqByClaimId.set(String(c.id), i + 1));
+
+    const rows = claims.map((c) => {
+      const path = pathFor(c.budgetItemId);
+      const itemPath =
+        path || (c.budgetItem?.name ? String(c.budgetItem.name) : "—");
+      return {
+        claimSequence: seqByClaimId.get(String(c.id)),
+        claimNo: c.claimNo,
+        claimantName: c.user.name,
+        itemPath,
+        statusLabel: CLAIM_STATUS_LABEL[c.status] ?? c.status,
+        claimAtKst: formatKstYmdHis(c.createdAt),
+        amountWon: `${c.claimAmount.toLocaleString("ko-KR")}원`,
+        attachments: c.attachments.map((a) => ({ id: String(a.id) })),
+      };
+    });
+
+    res.render("admin/fiscal-years/claims", {
+      title: `청구 내역 · ${fy.year}년 ${fy.name}`,
+      fy,
+      claims: rows,
+    });
   } catch (e) {
     next(e);
   }

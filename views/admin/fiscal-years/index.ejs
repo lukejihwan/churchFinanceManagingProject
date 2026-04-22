@@ -12,6 +12,7 @@
         <th>마감</th>
         <th>청구 활성</th>
         <th>예산안</th>
+        <th>청구</th>
       </tr>
     </thead>
     <tbody>
@@ -41,6 +42,9 @@
             <% } else { %>
               —
             <% } %>
+          </td>
+          <td>
+            <a href="/admin/fiscal-years/<%= String(fy.id) %>/claims">내역</a>
           </td>
         </tr>
       <% }) %>

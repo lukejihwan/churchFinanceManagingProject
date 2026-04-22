@@ -11,6 +11,50 @@ a {
   max-width: 32rem;
 }
 
+.admin-claims-page {
+  max-width: 72rem;
+}
+
+.claims-admin-table {
+  table-layout: auto;
+}
+
+.claims-item-path {
+  white-space: normal;
+  max-width: 18rem;
+}
+
+.claims-thumbs-cell {
+  vertical-align: top;
+}
+
+.claims-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: 20rem;
+}
+
+.claims-thumb-link {
+  display: block;
+  line-height: 0;
+}
+
+.claims-thumb {
+  object-fit: cover;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+}
+
+.claims-datetime {
+  white-space: nowrap;
+}
+
+.claims-seq-col {
+  width: 3rem;
+  text-align: center;
+}
+
 .hint {
   color: #555;
   font-size: 0.9rem;
@@ -133,15 +177,26 @@ a {
   border: 1px solid #ddd;
 }
 
-.budget-items-table .js-parent-name,
-.budget-items-table .js-name,
+.budget-items-table .col-outline,
+.budget-items-table .outline-cell {
+  white-space: nowrap;
+  width: 1%;
+  padding-right: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-items-table .js-path,
 .budget-items-table .js-amount,
 .budget-items-table .js-sort {
   width: 100%;
-  max-width: 10rem;
   box-sizing: border-box;
 }
 
-.budget-items-table .js-name {
-  max-width: 16rem;
+.budget-items-table .js-path {
+  max-width: 28rem;
+}
+
+.budget-items-table .js-amount,
+.budget-items-table .js-sort {
+  max-width: 10rem;
 }

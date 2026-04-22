@@ -1,35 +1,94 @@
 import { Prisma } from "../generated/prisma/index.js";
 import { assertNoParentCycle, assertParentSameBudget } from "./budgetItemHierarchy.js";
+import {
+  buildBudgetItemPathLookup,
+  formatBudgetItemPath,
+  parseBudgetItemPathSegments,
+} from "./budgetItemPath.js";
 
 function toDecimal(v) {
   const s = typeof v === "string" ? v.trim() : String(v ?? "0");
   return new Prisma.Decimal(s.length ? s : "0");
 }
 
-function normalizeParentName(v) {
-  const s = v == null ? "" : String(v).trim();
-  if (!s || s === "(최상위)") return null;
-  return s;
+/** 배정액(원, 정수). 소수 입력은 반올림합니다. */
+function toAllocatedInt(v) {
+  const raw = typeof v === "string" ? v.trim().replace(/,/g, "") : String(v ?? "0");
+  const n = parseFloat(raw.length ? raw : "0");
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n);
 }
 
-function assertDistinctItemNames(rows) {
-  const seen = new Set();
-  for (const r of rows) {
-    const n = String(r.name ?? "").trim();
-    if (!n) throw new Error("항목명을 입력하세요.");
-    if (seen.has(n)) throw new Error(`같은 예산에 동일한 항목명이 둘 이상입니다: ${n}`);
-    seen.add(n);
+/**
+ * 신규 UI(path) 또는 배포 직후 구형 폼(parentName + name)에서 경로 문자열을 만듭니다.
+ * @param {{ path?: unknown, name?: unknown, parentName?: unknown }} r
+ */
+function rowPathString(r) {
+  const direct = r.path != null ? String(r.path).trim() : "";
+  if (direct) return direct;
+  const legacyName = String(r.name ?? "").trim();
+  const legacyParentRaw = String(r.parentName ?? "").trim();
+  const legacyParent =
+    legacyParentRaw && legacyParentRaw !== "(최상위)" ? legacyParentRaw : "";
+  if (legacyParent && legacyName) {
+    return `${legacyParent}/${legacyName}`;
   }
+  return legacyName;
 }
 
-/** @param {Map<string, bigint>} nameToId */
-function resolveParentId(r, nameToId, selfId) {
-  const label = normalizeParentName(r.parentName);
-  if (label == null) return null;
-  const pid = nameToId.get(label);
-  if (pid === undefined) throw new Error(`부모 항목명을 찾을 수 없습니다: ${label}`);
-  if (selfId != null && pid === selfId) throw new Error("항목 자기 자신을 부모로 지정할 수 없습니다.");
-  return pid;
+/**
+ * @param {import('../generated/prisma/index.js').Prisma.TransactionClient} tx
+ * @param {bigint} budgetId
+ * @returns {Promise<Map<string, bigint>>}
+ */
+async function loadPathToIdMap(tx, budgetId) {
+  const items = await tx.budgetItem.findMany({
+    where: { budgetId },
+    select: { id: true, parentId: true, name: true },
+  });
+  const pathFor = buildBudgetItemPathLookup(items);
+  const m = new Map();
+  for (const it of items) {
+    m.set(pathFor(it.id), it.id);
+  }
+  return m;
+}
+
+/**
+ * 상위 경로 세그먼트에 해당하는 노드들이 없으면 배정액 0으로 생성합니다.
+ * @param {import('../generated/prisma/index.js').Prisma.TransactionClient} tx
+ * @param {bigint} budgetId
+ * @param {string[]} parentSegments
+ * @param {Map<string, bigint>} pathToId
+ */
+async function ensureParentChain(tx, budgetId, parentSegments, pathToId) {
+  let parentId = null;
+  if (parentSegments.length === 0) {
+    return null;
+  }
+  const cur = [];
+  for (let i = 0; i < parentSegments.length; i++) {
+    cur.push(parentSegments[i]);
+    const key = formatBudgetItemPath(cur);
+    let nodeId = pathToId.get(key);
+    if (nodeId == null) {
+      const created = await tx.budgetItem.create({
+        data: {
+          budgetId,
+          parentId,
+          name: parentSegments[i].slice(0, 150),
+          code: null,
+          allocatedAmount: 0,
+          sortOrder: 0,
+          isActive: true,
+        },
+      });
+      nodeId = created.id;
+      pathToId.set(key, nodeId);
+    }
+    parentId = nodeId;
+  }
+  return parentId;
 }
 
 async function deleteRemovedItems(tx, budgetId, toDeleteIds) {
@@ -65,8 +124,9 @@ async function deleteRemovedItems(tx, budgetId, toDeleteIds) {
  * @param {string | null | undefined} opts.description
  * @param {Array<{
  *   id?: string,
+ *   path?: string,
+ *   name?: string,
  *   parentName?: string,
- *   name: string,
  *   amount: string | number,
  *   sortOrder?: number
  * }>} opts.itemsPayload
@@ -81,7 +141,28 @@ export async function saveBudgetWithItems(prisma, opts) {
   if (!budget) throw new Error("예산안을 찾을 수 없습니다.");
 
   const rows = Array.isArray(itemsPayload) ? itemsPayload : [];
-  assertDistinctItemNames(rows);
+
+  /** @type {Array<{ raw: typeof rows[0], segments: string[], sortOrder: number, idx: number }>} */
+  const parsed = [];
+  const seenPaths = new Set();
+
+  for (let idx = 0; idx < rows.length; idx++) {
+    const raw = rows[idx];
+    const pathStr = rowPathString(raw);
+    const segments = parseBudgetItemPathSegments(pathStr);
+    const fullPath = formatBudgetItemPath(segments);
+    if (seenPaths.has(fullPath)) {
+      throw new Error(`동일한 항목 경로가 두 번 이상 있습니다: ${fullPath}`);
+    }
+    seenPaths.add(fullPath);
+    const sortOrder = Number.isFinite(Number(raw.sortOrder)) ? Number(raw.sortOrder) : 0;
+    parsed.push({ raw, segments, sortOrder, idx });
+  }
+
+  parsed.sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return a.idx - b.idx;
+  });
 
   return prisma.$transaction(async (tx) => {
     await tx.budget.update({
@@ -113,109 +194,78 @@ export async function saveBudgetWithItems(prisma, opts) {
     const toDelete = [...existingIds].filter((id) => !payloadIds.has(id));
     await deleteRemovedItems(tx, budgetId, toDelete);
 
+    let pathToId = await loadPathToIdMap(tx, budgetId);
+
     let knownIds = new Set(
       (await tx.budgetItem.findMany({ where: { budgetId }, select: { id: true } })).map((x) => x.id),
     );
 
-    const updates = rows.filter((r) => {
-      if (!r.id || String(r.id).trim() === "") return false;
-      try {
-        return knownIds.has(BigInt(r.id));
-      } catch {
-        return false;
+    for (const { raw, segments } of parsed) {
+      const leafName = segments[segments.length - 1];
+      const parentSegments = segments.slice(0, -1);
+
+      const parentId = await ensureParentChain(tx, budgetId, parentSegments, pathToId);
+
+      const idStr = raw.id != null ? String(raw.id).trim() : "";
+      let isUpdate = false;
+      if (idStr !== "") {
+        try {
+          isUpdate = knownIds.has(BigInt(idStr));
+        } catch {
+          isUpdate = false;
+        }
       }
-    });
 
-    /** 이름(트림) → 항목 id — 페이로드에 id가 있는 행만 먼저 등록, 생성 후 신규 행도 추가 */
-    const nameToId = new Map();
-    for (const r of rows) {
-      if (!r.id || String(r.id).trim() === "") continue;
-      nameToId.set(String(r.name).trim(), BigInt(r.id));
-    }
-
-    for (const r of updates) {
-      const id = BigInt(r.id);
-      const parentId = resolveParentId(r, nameToId, id);
-      if (parentId != null) {
-        const parent = await tx.budgetItem.findFirst({
-          where: { id: parentId, budgetId },
-        });
-        if (!parent) throw new Error("부모 항목을 찾을 수 없습니다.");
-        assertParentSameBudget(parent, budgetId);
+      if (isUpdate) {
+        const id = BigInt(idStr);
+        if (parentId != null) {
+          const parent = await tx.budgetItem.findFirst({
+            where: { id: parentId, budgetId },
+          });
+          if (!parent) throw new Error("상위 예산 항목을 찾을 수 없습니다.");
+          assertParentSameBudget(parent, budgetId);
+        }
         await assertNoParentCycle(id, parentId, (pid) =>
           tx.budgetItem.findFirst({
             where: { id: pid, budgetId },
             select: { id: true, parentId: true },
           }),
         );
-      }
-      await tx.budgetItem.update({
-        where: { id },
-        data: {
-          name: String(r.name).trim().slice(0, 150),
-          code: null,
-          allocatedAmount: toDecimal(r.amount),
-          sortOrder: Number.isFinite(Number(r.sortOrder)) ? Number(r.sortOrder) : 0,
-          parentId,
-        },
-      });
-    }
-
-    knownIds = new Set(
-      (await tx.budgetItem.findMany({ where: { budgetId }, select: { id: true } })).map((x) => x.id),
-    );
-
-    const creates = rows.filter((r) => !r.id || String(r.id).trim() === "");
-    let pending = [...creates];
-
-    while (pending.length > 0) {
-      const round = [];
-      const rest = [];
-      for (const r of pending) {
-        const label = normalizeParentName(r.parentName);
-        let parentId = null;
-        let ok = true;
-        if (label != null) {
-          const pid = nameToId.get(label);
-          if (pid === undefined) {
-            ok = false;
-          } else {
-            parentId = pid;
-          }
-        }
-        if (ok && (parentId == null || knownIds.has(parentId))) {
-          round.push({ ...r, parentId });
-        } else {
-          rest.push(r);
-        }
-      }
-      if (round.length === 0) {
-        throw new Error(
-          "새 항목의 부모가 아직 저장되지 않았거나 잘못된 부모를 참조합니다. 부모 항목명을 확인하고, 표에서 부모 행이 자식보다 위에 오도록 순서를 맞춘 뒤 다시 시도하세요.",
-        );
-      }
-      for (const r of round) {
-        const parentId = r.parentId;
+        await tx.budgetItem.update({
+          where: { id },
+          data: {
+            name: leafName.slice(0, 150),
+            code: null,
+            allocatedAmount: toAllocatedInt(raw.amount),
+            sortOrder: Number.isFinite(Number(raw.sortOrder)) ? Number(raw.sortOrder) : 0,
+            parentId,
+          },
+        });
+      } else {
         if (parentId != null) {
-          const parent = await tx.budgetItem.findFirst({ where: { id: parentId, budgetId } });
-          if (!parent) throw new Error("부모 항목을 찾을 수 없습니다.");
+          const parent = await tx.budgetItem.findFirst({
+            where: { id: parentId, budgetId },
+          });
+          if (!parent) throw new Error("상위 예산 항목을 찾을 수 없습니다.");
           assertParentSameBudget(parent, budgetId);
         }
-        const created = await tx.budgetItem.create({
+        await tx.budgetItem.create({
           data: {
             budgetId,
             parentId,
-            name: String(r.name).trim().slice(0, 150),
+            name: leafName.slice(0, 150),
             code: null,
-            allocatedAmount: toDecimal(r.amount),
-            sortOrder: Number.isFinite(Number(r.sortOrder)) ? Number(r.sortOrder) : 0,
+            allocatedAmount: toAllocatedInt(raw.amount),
+            sortOrder: Number.isFinite(Number(raw.sortOrder)) ? Number(raw.sortOrder) : 0,
             isActive: true,
           },
         });
-        knownIds.add(created.id);
-        nameToId.set(String(r.name).trim(), created.id);
       }
-      pending = rest;
+
+      pathToId = await loadPathToIdMap(tx, budgetId);
+      knownIds = new Set(
+        (await tx.budgetItem.findMany({ where: { budgetId }, select: { id: true } })).map((x) => x.id),
+      );
     }
   });
 }
